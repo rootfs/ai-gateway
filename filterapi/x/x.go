@@ -24,6 +24,8 @@ type Router interface {
 	// The request headers include the populated [filterapi.Config.ModelNameHeaderKey]
 	// with the parsed model name based on the [filterapi.Config] given to the NewCustomRouterFn.
 	//
+	// The request body is passed when there is a semantic processor service in place to handle semanatic related analysis.
+	//
 	// Returns the backend.
-	Calculate(requestHeaders map[string]string) (backend *filterapi.Backend, err error)
+	Calculate(requestHeaders map[string]string, requestBody any) (backend *filterapi.Backend, model string, err error)
 }

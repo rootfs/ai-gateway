@@ -159,6 +159,16 @@ type Backend struct {
 	// Auth is the authn/z configuration for the backend. Optional.
 	// TODO: refactor after https://github.com/envoyproxy/ai-gateway/pull/43.
 	Auth *BackendAuth `json:"auth,omitempty"`
+	// AutoModelConfig is optional configuration for handling model="auto"
+	// Currently only used for OpenAI.
+	AutoModelConfig *AutoModelConfig `json:"autoModelConfig,omitempty"`
+}
+
+// AutoModelConfig configures automatic model selection
+type AutoModelConfig struct {
+	SemanticProcessorServiceURL string   `json:"semanticProcessorServiceURL"`
+	SimpleModels                []string `json:"simpleModels"`
+	StrongModels                []string `json:"strongModels"`
 }
 
 // BackendAuth corresponds partially to BackendSecurityPolicy in api/v1alpha1/api.go.

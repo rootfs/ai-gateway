@@ -89,11 +89,13 @@ func (p *Processor) ProcessRequestBody(_ context.Context, rawBody *extprocv3.Htt
 	p.logger.Info("Processing request", "path", path, "model", model)
 
 	p.requestHeaders[p.config.modelNameHeaderKey] = model
-	b, err := p.config.router.Calculate(p.requestHeaders)
+	b, m, err := p.config.router.Calculate(p.requestHeaders, body)
 	if err != nil {
 		return nil, fmt.Errorf("failed to calculate route: %w", err)
 	}
-	p.logger.Info("Selected backend", "backend", b.Name)
+	p.requestHeaders[p.config.modelNameHeaderKey] = m
+	model = m
+	p.logger.Info("Selected backend", "backend", b.Name, "model", model)
 
 	factory, ok := p.config.factories[b.Schema]
 	if !ok {
@@ -114,12 +116,29 @@ func (p *Processor) ProcessRequestBody(_ context.Context, rawBody *extprocv3.Htt
 	if headerMutation == nil {
 		headerMutation = &extprocv3.HeaderMutation{}
 	}
+	// Update the model field in request body in bodyMutation.
+	newBody, err := router.UpdateModel(model, rawBody.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to update request body model: %w", err)
+	}
+
 	// Set the model name to the request header with the key `x-ai-gateway-llm-model-name`.
 	headerMutation.SetHeaders = append(headerMutation.SetHeaders, &corev3.HeaderValueOption{
 		Header: &corev3.HeaderValue{Key: p.config.modelNameHeaderKey, RawValue: []byte(model)},
 	}, &corev3.HeaderValueOption{
 		Header: &corev3.HeaderValue{Key: p.config.selectedBackendHeaderKey, RawValue: []byte(b.Name)},
-	})
+	}, &corev3.HeaderValueOption{
+		Header: &corev3.HeaderValue{Key: "content-length", RawValue: []byte(fmt.Sprintf("%d", len(string(newBody))))},
+	},
+	)
+
+	if bodyMutation == nil {
+		bodyMutation = &extprocv3.BodyMutation{
+			Mutation: &extprocv3.BodyMutation_Body{
+				Body: newBody,
+			},
+		}
+	}
 
 	if authHandler, ok := p.config.backendAuthHandlers[b.Name]; ok {
 		if err := authHandler.Do(p.requestHeaders, headerMutation, bodyMutation); err != nil {

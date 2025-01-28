@@ -2,23 +2,32 @@ package router
 
 import (
 	"errors"
+	"fmt"
 	"time"
 
 	"golang.org/x/exp/rand"
 
 	"github.com/envoyproxy/ai-gateway/filterapi"
 	"github.com/envoyproxy/ai-gateway/filterapi/x"
+
+	"github.com/envoyproxy/ai-gateway/internal/apischema/openai"
+	"github.com/envoyproxy/ai-gateway/internal/extproc/modelselect"
 )
 
 // router implements [filterapi.Router].
 type router struct {
-	rules []filterapi.RouteRule
-	rng   *rand.Rand
+	rules  []filterapi.RouteRule
+	rng    *rand.Rand
+	config *filterapi.Config
 }
 
-// NewRouter creates a new [filterapi.Router] implementation for the given config.
+// NewRouter creates a new [extprocapi.Router] implementation for the given config.
 func NewRouter(config *filterapi.Config, newCustomFn x.NewCustomRouterFn) (x.Router, error) {
-	r := &router{rules: config.Rules, rng: rand.New(rand.NewSource(uint64(time.Now().UnixNano())))} //nolint:gosec
+	r := &router{
+		rules:  config.Rules,
+		rng:    rand.New(rand.NewSource(uint64(time.Now().UnixNano()))), //nolint:gosec
+		config: config,
+	}
 	if newCustomFn != nil {
 		customRouter := newCustomFn(r, config)
 		return customRouter, nil
@@ -26,9 +35,41 @@ func NewRouter(config *filterapi.Config, newCustomFn x.NewCustomRouterFn) (x.Rou
 	return r, nil
 }
 
-// Calculate implements [filterapi.Router.Calculate].
-func (r *router) Calculate(headers map[string]string) (backend *filterapi.Backend, err error) {
+// Calculate implements [extprocapi.Router.Calculate].
+func (r *router) Calculate(headers map[string]string, requestBody any) (backend *filterapi.Backend, model string, err error) {
+	modelName, ok := headers[r.config.ModelNameHeaderKey]
+	if !ok {
+		return nil, "", errors.New("model name not found in headers")
+	}
 	var rule *filterapi.RouteRule
+
+	// Handle auto model selection for OpenAI backend
+	if modelName == "auto" {
+		// Currently, we only support OpenAI backend for auto model selection.
+		for i := range r.rules {
+			_rule := &r.rules[i]
+			for _, backend := range _rule.Backends {
+				if backend.Schema.Name == filterapi.APISchemaOpenAI && backend.AutoModelConfig != nil {
+					if chatReq, ok := requestBody.(*openai.ChatCompletionRequest); ok {
+						semanticService := modelselect.NewSemanticProcessorService(
+							backend.AutoModelConfig.SemanticProcessorServiceURL,
+							backend.AutoModelConfig.SimpleModels,
+							backend.AutoModelConfig.StrongModels,
+						)
+						selectedModel, err := semanticService.SelectModel(chatReq)
+						if err != nil {
+							return nil, "", errors.New("failed to select model")
+						}
+						fmt.Printf("Selected model: %s\n", selectedModel)
+						headers[r.config.ModelNameHeaderKey] = selectedModel
+						modelName = selectedModel
+					}
+					break
+				}
+			}
+		}
+	}
+
 	for i := range r.rules {
 		_rule := &r.rules[i]
 		for _, hdr := range _rule.Headers {
@@ -41,9 +82,10 @@ func (r *router) Calculate(headers map[string]string) (backend *filterapi.Backen
 		}
 	}
 	if rule == nil {
-		return nil, errors.New("no matching rule found")
+		return nil, "", errors.New("no matching rule found")
 	}
-	return r.selectBackendFromRule(rule), nil
+
+	return r.selectBackendFromRule(rule), modelName, nil
 }
 
 func (r *router) selectBackendFromRule(rule *filterapi.RouteRule) (backend *filterapi.Backend) {
