@@ -3,6 +3,7 @@ package router
 import (
 	"encoding/json"
 	"fmt"
+	"regexp"
 
 	extprocv3 "github.com/envoyproxy/go-control-plane/envoy/service/ext_proc/v3"
 
@@ -23,6 +24,15 @@ func NewRequestBodyParser(schema filterconfig.VersionedAPISchema) (RequestBodyPa
 
 // RequestBody is the union of all request body types.
 type RequestBody any
+
+// UpdateModel updates the model field in the request body and returns it as bytes
+func UpdateModel(model string, body []byte) ([]byte, error) {
+	// This regex looks for "model": "any-characters-here"
+	//TODO this should really go to the openai json marshalling code
+	re := regexp.MustCompile(`"model"\s*:\s*"[^"]*"`)
+	newModelField := fmt.Sprintf(`"model": "%s"`, model)
+	return re.ReplaceAll(body, []byte(newModelField)), nil
+}
 
 // openAIParseBody parses the body of the request for OpenAI.
 func openAIParseBody(path string, body *extprocv3.HttpBody) (modelName string, rb RequestBody, err error) {

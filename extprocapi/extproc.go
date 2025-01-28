@@ -24,6 +24,8 @@ type Router interface {
 	// The request headers include the populated [filterconfig.Config.ModelNameHeaderKey]
 	// with the parsed model name based on the [filterconfig.Config] given to the NewCustomRouterFn.
 	//
+	// The request body is passed when there is a semantic processor service in place to handle semanatic related analysis.
+	//
 	// Returns the backend.
-	Calculate(requestHeaders map[string]string) (backend *filterconfig.Backend, err error)
+	Calculate(requestHeaders map[string]string, requestBody any) (backend *filterconfig.Backend, model string, err error)
 }

@@ -9,7 +9,7 @@ client = OpenAI(
 
 # Make a completion request
 completion = client.chat.completions.create(
-            model="gpt-4o-mini",
+            model="auto",
             messages=[{
                 "role": "user",
                 "content": "Count from 1 to 5"

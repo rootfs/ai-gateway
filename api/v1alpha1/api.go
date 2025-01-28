@@ -317,8 +317,25 @@ type AIServiceBackendSpec struct {
 	// +optional
 	BackendSecurityPolicyRef *gwapiv1.LocalObjectReference `json:"backendSecurityPolicyRef,omitempty"`
 
+	// AutoModelConfig is optional configuration for handling model="auto"
+	// +optional
+	AutoModelConfig *AutoModelConfig `json:"autoModelConfig,omitempty"`
+
 	// TODO: maybe add backend-level LLMRequestCost configuration that overrides the AIGatewayRoute-level LLMRequestCost.
 	// 	That may be useful for the backend that has a different cost calculation logic.
+}
+
+// AutoModelConfig configures automatic model selection
+// Currently, this is used for OpenAI models
+type AutoModelConfig struct {
+	// SemanticProcessorServiceURL is the URL of the semantic processor service for semantic analysis
+	SemanticProcessorServiceURL string `json:"semanticProcessorServiceURL"`
+
+	// SimpleModels is the list of OpenAI models for simple queries
+	SimpleModels []string `json:"simpleModels"`
+
+	// StrongModels is the list of OpenAI models for complex queries
+	StrongModels []string `json:"strongModels"`
 }
 
 // VersionedAPISchema defines the API schema of either AIGatewayRoute (the input) or AIServiceBackend (the output).
