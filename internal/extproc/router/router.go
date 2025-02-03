@@ -44,28 +44,36 @@ func (r *router) Calculate(headers map[string]string, requestBody any) (backend 
 	var rule *filterapi.RouteRule
 
 	// Handle auto model selection for OpenAI backend
+	// Handle auto model selection for OpenAI backend
 	if modelName == "auto" {
+		var simpleModels []string
+		var strongModels []string
+		var semanticURL string
 		// Currently, we only support OpenAI backend for auto model selection.
 		for i := range r.rules {
 			_rule := &r.rules[i]
 			for _, backend := range _rule.Backends {
 				if backend.Schema.Name == filterapi.APISchemaOpenAI && backend.AutoModelConfig != nil {
-					if chatReq, ok := requestBody.(*openai.ChatCompletionRequest); ok {
-						semanticService := modelselect.NewSemanticProcessorService(
-							backend.AutoModelConfig.SemanticProcessorServiceURL,
-							backend.AutoModelConfig.SimpleModels,
-							backend.AutoModelConfig.StrongModels,
-						)
-						selectedModel, err := semanticService.SelectModel(chatReq)
-						if err != nil {
-							return nil, "", errors.New("failed to select model")
-						}
-						fmt.Printf("Selected model: %s\n", selectedModel)
-						headers[r.config.ModelNameHeaderKey] = selectedModel
-						modelName = selectedModel
-					}
-					break
+					// Append models from the backend to the lists
+					simpleModels = append(simpleModels, backend.AutoModelConfig.SimpleModels...)
+					strongModels = append(strongModels, backend.AutoModelConfig.StrongModels...)
+					semanticURL = backend.AutoModelConfig.SemanticProcessorServiceURL
 				}
+			}
+
+			if chatReq, ok := requestBody.(*openai.ChatCompletionRequest); ok {
+				semanticService := modelselect.NewSemanticProcessorService(
+					semanticURL,
+					simpleModels,
+					strongModels,
+				)
+				selectedModel, err := semanticService.SelectModel(chatReq)
+				if err != nil || selectedModel == "" {
+					return nil, "", errors.New("failed to select model")
+				}
+				fmt.Printf("Selected model: %s\n", selectedModel)
+				headers[r.config.ModelNameHeaderKey] = selectedModel
+				modelName = selectedModel
 			}
 		}
 	}
@@ -85,26 +93,53 @@ func (r *router) Calculate(headers map[string]string, requestBody any) (backend 
 		return nil, "", errors.New("no matching rule found")
 	}
 
-	return r.selectBackendFromRule(rule), modelName, nil
+	return r.selectBackendFromRule(rule, modelName), modelName, nil
 }
 
-func (r *router) selectBackendFromRule(rule *filterapi.RouteRule) (backend *filterapi.Backend) {
-	// Each backend has a weight, so we randomly select depending on the weight.
-	// This is a pretty naive implementation and can be buggy, so fix it later.
+// selectBackendFromRule selects a backend based on the model name and weight.
+func (r *router) selectBackendFromRule(rule *filterapi.RouteRule, modelName string) (backend *filterapi.Backend) {
+	// Filter backends that contain the selected model
+	var candidateBackends []filterapi.Backend
+	for i := range rule.Backends {
+		b := &rule.Backends[i]
+		for _, model := range b.AutoModelConfig.SimpleModels {
+			if model == modelName {
+				candidateBackends = append(candidateBackends, *b)
+				break
+			}
+		}
+		for _, model := range b.AutoModelConfig.StrongModels {
+			if model == modelName {
+				candidateBackends = append(candidateBackends, *b)
+				break
+			}
+		}
+	}
+
+	// If no backends contain the selected model, fall back to weight-based selection
+	if len(candidateBackends) == 0 {
+		return r.selectBackendByWeight(rule.Backends)
+	}
+
+	// Select a backend from the candidates based on weight
+	return r.selectBackendByWeight(candidateBackends)
+}
+
+// selectBackendByWeight selects a backend based on weight.
+func (r *router) selectBackendByWeight(backends []filterapi.Backend) *filterapi.Backend {
 	totalWeight := 0
-	for _, b := range rule.Backends {
+	for _, b := range backends {
 		totalWeight += b.Weight
 	}
 	if totalWeight == 0 {
-		return &rule.Backends[0]
+		return &backends[0]
 	}
 	selected := r.rng.Intn(totalWeight)
-	for i := range rule.Backends {
-		b := &rule.Backends[i]
+	for _, b := range backends {
 		if selected < b.Weight {
-			return b
+			return &b
 		}
 		selected -= b.Weight
 	}
-	return &rule.Backends[0]
+	return &backends[0]
 }

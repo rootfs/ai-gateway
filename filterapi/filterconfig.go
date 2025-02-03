@@ -166,9 +166,9 @@ type Backend struct {
 
 // AutoModelConfig configures automatic model selection
 type AutoModelConfig struct {
-	SemanticProcessorServiceURL string   `json:"semanticProcessorServiceURL"`
-	SimpleModels                []string `json:"simpleModels"`
-	StrongModels                []string `json:"strongModels"`
+	SemanticProcessorServiceURL string   `json:"semanticProcessorServiceURL,omitempty"`
+	SimpleModels                []string `json:"simpleModels,omitempty"`
+	StrongModels                []string `json:"strongModels,omitempty"`
 }
 
 // BackendAuth corresponds partially to BackendSecurityPolicy in api/v1alpha1/api.go.

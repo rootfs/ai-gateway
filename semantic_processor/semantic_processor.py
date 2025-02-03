@@ -1,6 +1,9 @@
 from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
-from transformers import BertTokenizer, BertForSequenceClassification, Trainer, TrainingArguments
+from pydantic import BaseModel, Field, model_validator
+from transformers import (
+    BertTokenizer,
+    BertForSequenceClassification,
+)
 import torch
 import numpy as np
 from typing import List
@@ -19,11 +22,21 @@ model = BertForSequenceClassification.from_pretrained(model_path, num_labels=2)
 
 class ModelSelectionRequest(BaseModel):
     text: str
-    simple_models: List[str]
-    strong_models: List[str]
+    simple_models: List[str] = Field(default_factory=list)
+    strong_models: List[str] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def after_check_models(self):
+        if not self.simple_models and not self.strong_models:
+            raise ValueError(
+                "At least one of simple_models or strong_models must be provided"
+            )
+        return self
+
 
 class ModelSelectionResponse(BaseModel):
     selected_model: str
+
 
 def get_text_complexity(text: str) -> float:
     """
@@ -31,8 +44,10 @@ def get_text_complexity(text: str) -> float:
     Returns a class prediction of 0 or 1.
     """
     # Tokenize text and get BERT embeddings
-    inputs = tokenizer(text, return_tensors="pt", padding=True, truncation=True, max_length=512)
-    
+    inputs = tokenizer(
+        text, return_tensors="pt", padding=True, truncation=True, max_length=512
+    )
+
     # Make a prediction
     with torch.no_grad():
         outputs = model(**inputs)
@@ -41,14 +56,12 @@ def get_text_complexity(text: str) -> float:
     print(f"Predicted class: {predicted_class}")
     return predicted_class
 
+
 def select_model(text: str, simple_models: List[str], strong_models: List[str]) -> str:
     """
     Select a model based on text complexity and available models.
     Falls back to simple models if no strong models are available and vice versa.
     """
-    if not simple_models and not strong_models:
-        raise ValueError("No models provided")
-        
     predicted_class = get_text_complexity(text)
     if predicted_class == 1:
         # Try strong models first, fall back to simple if none available
@@ -61,6 +74,7 @@ def select_model(text: str, simple_models: List[str], strong_models: List[str]) 
             return random.choice(simple_models)
         return random.choice(strong_models)
 
+
 @app.post("/analyze", response_model=ModelSelectionResponse)
 async def analyze_text(request: ModelSelectionRequest) -> ModelSelectionResponse:
     """
@@ -68,13 +82,12 @@ async def analyze_text(request: ModelSelectionRequest) -> ModelSelectionResponse
     """
     try:
         selected_model = select_model(
-            request.text,
-            request.simple_models,
-            request.strong_models
+            request.text, request.simple_models, request.strong_models
         )
         return ModelSelectionResponse(selected_model=selected_model)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)

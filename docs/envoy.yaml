@@ -50,6 +50,15 @@ static_resources:
                                   exact: testupstream
                           route:
                             cluster: testupstream
+                        - match:
+                            prefix: "/"
+                            headers:
+                              - name: x-selected-backend-name
+                                string_match:
+                                  exact: moc
+                          route:
+                            host_rewrite_literal: mixtral-mixtral-serve.apps.ocp-beta-test.nerc.mghpcc.org
+                            cluster: moc
                 http_filters:
                   - name: envoy.filters.http.ext_proc
                     typed_config:
@@ -141,3 +150,20 @@ static_resources:
         typed_config:
           "@type": type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.UpstreamTlsContext
           sni: api.openai.com
+    - name: moc
+      connect_timeout: 30s
+      type: STRICT_DNS
+      load_assignment:
+        cluster_name: moc
+        endpoints:
+          - lb_endpoints:
+              - endpoint:
+                  address:
+                    socket_address:
+                      address: mixtral-mixtral-serve.apps.ocp-beta-test.nerc.mghpcc.org
+                      port_value: 443
+      transport_socket:
+        name: envoy.transport_sockets.tls
+        typed_config:
+          "@type": type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.UpstreamTlsContext
+          sni: mixtral-mixtral-serve.apps.ocp-beta-test.nerc.mghpcc.org

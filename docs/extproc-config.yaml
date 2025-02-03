@@ -5,10 +5,10 @@ metadataNamespace: ai_gateway_llm_ns
 modelNameHeaderKey: x-model-name
 rules:
 - backends:
-  - auth:
+  - name: openai
+    auth:
       apiKey:
         filename: /tmp/open-ai-api-key
-    name: openai
     schema:
       name: OpenAI
     weight: 0
@@ -18,11 +18,25 @@ rules:
       - gpt-3.5-turbo
       strongModels:
       - gpt-4o-mini
+  - name: moc
+    auth:
+      apiKey:
+        filename: /tmp/nerc-open-ai-api-key
+    schema:
+      name: OpenAI
+    weight: 1
+    endpoint: https://mixtral-mixtral-serve.apps.ocp-beta-test.nerc.mghpcc.org/v1 # MOC
+    autoModelConfig:
+      semanticProcessorServiceURL: http://localhost:8000/analyze
+      simpleModels:
+      - mixtral
   headers:
   - name: x-model-name
     value: gpt-3.5-turbo
   - name: x-model-name
     value: gpt-4o-mini
+  - name: x-model-name
+    value: mixtral
 schema:
   name: OpenAI
 selectedBackendHeaderKey: x-selected-backend-name

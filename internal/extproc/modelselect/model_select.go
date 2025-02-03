@@ -41,12 +41,20 @@ func (b *SemanticProcessorService) SelectModel(request *openai.ChatCompletionReq
 	// Call SemanticProcessor service
 	req := struct {
 		Text         string   `json:"text"`
-		SimpleModels []string `json:"simple_models"`
-		StrongModels []string `json:"strong_models"`
+		SimpleModels []string `json:"simple_models,omitempty"`
+		StrongModels []string `json:"strong_models,omitempty"`
 	}{
 		Text:         chatText,
 		SimpleModels: b.simpleModels,
 		StrongModels: b.strongModels,
+	}
+
+	// Ensure SimpleModels and StrongModels are not nil
+	if req.SimpleModels == nil {
+		req.SimpleModels = []string{}
+	}
+	if req.StrongModels == nil {
+		req.StrongModels = []string{}
 	}
 
 	body, err := json.Marshal(req)
