@@ -6,17 +6,21 @@ import (
 	"log"
 	"log/slog"
 	"net"
+	"net/http"
 	"os"
 	"os/signal"
 	"strings"
 	"syscall"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+
 	extprocv3 "github.com/envoyproxy/go-control-plane/envoy/service/ext_proc/v3"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health/grpc_health_v1"
 
 	"github.com/envoyproxy/ai-gateway/internal/extproc"
+	"github.com/envoyproxy/ai-gateway/internal/metrics"
 	"github.com/envoyproxy/ai-gateway/internal/version"
 )
 
@@ -30,6 +34,7 @@ var (
 		"The file must be in YAML format specified in extprocconfig.Config type. The configuration file is watched for changes.")
 	extProcAddr = flag.String("extProcAddr", defaultAddress, "gRPC address for the external processor")
 	logLevel    = flag.String("logLevel", defaultLogLevel, "log level")
+	promPort    = flag.String("promPort", ":9190", "port for prometheus metrics")
 )
 
 // Main is a main function for the external processor exposed
@@ -82,6 +87,24 @@ func Main() {
 		<-ctx.Done()
 		s.GracefulStop()
 	}()
+
+	// Add prometheus metrics
+	metrics.InitMetrics()
+
+	go func() {
+		mux := http.NewServeMux()
+		mux.Handle("/metrics", promhttp.HandlerFor(metrics.GetRegistry(), promhttp.HandlerOpts{}))
+
+		server := &http.Server{
+			Addr:    *promPort, // Avoid 9090, the default prometheus port
+			Handler: mux,
+		}
+
+		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatalf("Metrics server failed: %v", err)
+		}
+	}()
+
 	_ = s.Serve(lis)
 }
 
