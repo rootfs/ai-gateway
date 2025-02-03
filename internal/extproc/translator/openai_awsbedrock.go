@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream"
 	corev3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
@@ -38,6 +39,11 @@ type openAIToAWSBedrockTranslatorV1ChatCompletion struct {
 	// role is from MessageStartEvent in chunked messages, and used for all openai chat completion chunk choices.
 	// Translator is created for each request/response stream inside external processor, accordingly the role is not reused by multiple streams
 	role string
+	// Add new fields for tracking streaming metrics
+	firstTokenSent bool
+	lastTokenTime  time.Time
+	backendName    string
+	modelName      string
 }
 
 // RequestBody implements [Translator.RequestBody].
@@ -505,7 +511,7 @@ func (o *openAIToAWSBedrockTranslatorV1ChatCompletion) ResponseError(respHeaders
 }
 
 // ResponseBody implements [Translator.ResponseBody].
-func (o *openAIToAWSBedrockTranslatorV1ChatCompletion) ResponseBody(respHeaders map[string]string, body io.Reader, endOfStream bool) (
+func (o *openAIToAWSBedrockTranslatorV1ChatCompletion) ResponseBody(respHeaders map[string]string, body io.Reader, endOfStream bool, backendName, modelName string) (
 	headerMutation *extprocv3.HeaderMutation, bodyMutation *extprocv3.BodyMutation, tokenUsage LLMTokenUsage, err error,
 ) {
 	if v, ok := respHeaders[statusHeaderName]; ok {
@@ -518,6 +524,8 @@ func (o *openAIToAWSBedrockTranslatorV1ChatCompletion) ResponseBody(respHeaders 
 	}
 	mut := &extprocv3.BodyMutation_Body{}
 	if o.stream {
+		o.backendName = backendName
+		o.modelName = modelName
 		buf, err := io.ReadAll(body)
 		if err != nil {
 			return nil, nil, tokenUsage, fmt.Errorf("failed to read body: %w", err)

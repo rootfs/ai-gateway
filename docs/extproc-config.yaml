@@ -5,19 +5,6 @@ metadataNamespace: ai_gateway_llm_ns
 modelNameHeaderKey: x-model-name
 rules:
 - backends:
-  - name: openai
-    auth:
-      apiKey:
-        filename: /tmp/open-ai-api-key
-    schema:
-      name: OpenAI
-    weight: 0
-    autoModelConfig:
-      semanticProcessorServiceURL: http://localhost:8000/analyze
-      simpleModels:
-      - gpt-3.5-turbo
-      strongModels:
-      - gpt-4o-mini
   - name: moc
     auth:
       apiKey:
@@ -30,11 +17,9 @@ rules:
       semanticProcessorServiceURL: http://localhost:8000/analyze
       simpleModels:
       - mixtral
+      strongModels:
+      - mixtral
   headers:
-  - name: x-model-name
-    value: gpt-3.5-turbo
-  - name: x-model-name
-    value: gpt-4o-mini
   - name: x-model-name
     value: mixtral
 schema:
