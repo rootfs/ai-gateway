@@ -351,13 +351,13 @@
             "uid": "febzoy4cplt6oe"
           },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.99, sum(rate(aigateway_backend_request_duration_seconds_bucket{status=\"success\"}[5m])) by (le))",
-          "legendFormat": "p99 Overall Latency",
+          "expr": "sum(rate(aigateway_backend_request_duration_seconds_bucket{status=\"success\"}[60m])) by (backend)",
+          "legendFormat": "__auto",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Overall p99 Latency",
+      "title": "Latency by Backends",
       "type": "stat"
     }
   ],
@@ -378,6 +378,6 @@
   "timezone": "",
   "title": "AI Gateway Metrics",
   "uid": "ai-gateway-metrics",
-  "version": 5,
+  "version": 6,
   "weekStart": ""
 }
