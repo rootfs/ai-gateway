@@ -38,6 +38,9 @@ modelNameHeaderKey: x-ai-eg-model
 //	  name: OpenAI
 //	selectedBackendHeaderKey: x-envoy-ai-gateway-selected-backend
 //	modelNameHeaderKey: x-ai-eg-model
+//	semanticCache:
+//	  address: localhost:50051
+//	  similarityThreshold: 0.8
 //	llmRequestCosts:
 //	- metadataKey: token_usage_key
 //	  type: OutputToken
@@ -88,6 +91,8 @@ type Config struct {
 	// Rules is the routing rules to be used by the filter to make the routing decision.
 	// Inside the routing rules, the header ModelNameHeaderKey may be used to make the routing decision.
 	Rules []RouteRule `json:"rules"`
+	// SemanticCache defines the configuration for semantic caching
+	SemanticCache *SemanticCacheConfig `json:"semanticCache,omitempty"`
 }
 
 // LLMRequestCost specifies "where" the request cost is stored in the filter metadata as well as
@@ -183,6 +188,12 @@ type AWSAuth struct {
 // APIKeyAuth defines the file that will be mounted to the external proc.
 type APIKeyAuth struct {
 	Filename string `json:"filename"`
+}
+
+// SemanticCacheConfig defines the configuration for semantic caching
+type SemanticCacheConfig struct {
+	Address             string  `yaml:"address"`
+	SimilarityThreshold float32 `yaml:"similarityThreshold"`
 }
 
 // UnmarshalConfigYaml reads the file at the given path and unmarshals it into a Config struct.

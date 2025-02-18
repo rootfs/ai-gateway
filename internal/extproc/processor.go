@@ -30,6 +30,7 @@ type processorConfig struct {
 	metadataNamespace                            string
 	requestCosts                                 []processorConfigRequestCost
 	declaredModels                               []string
+	semanticCache                                *x.SemanticCacheConfig
 }
 
 // processorConfigRequestCost is the configuration for the request cost.

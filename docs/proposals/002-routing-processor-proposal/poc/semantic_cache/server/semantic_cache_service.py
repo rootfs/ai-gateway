@@ -35,7 +35,7 @@ class SemanticCacheServicer(pb_grpc.SemanticCacheServiceServicer):
     async def SearchCache(self, request: pb.SearchRequest, 
                          context: grpc.aio.ServicerContext) -> pb.SearchResponse:
         client = context.peer()
-        logger.info(f"Received search request from {client}")
+        logger.info(f"Received search request from {client}, messages: {request.messages} similarity_threshold: {request.similarity_threshold}, model: {request.model}")
         
         embedding = await self.get_embedding(request.messages)
         
@@ -62,7 +62,7 @@ class SemanticCacheServicer(pb_grpc.SemanticCacheServiceServicer):
     async def StoreChat(self, request: pb.StoreChatRequest, 
                        context: grpc.aio.ServicerContext) -> pb.StoreChatResponse:
         client = context.peer()
-        logger.info(f"Received store request from {client}")
+        logger.info(f"Received store request from {client}, request: {request.request_messages}, response: {request.response_messages}, model: {request.model}")
         
         try:
             embedding = await self.get_embedding(request.request_messages)

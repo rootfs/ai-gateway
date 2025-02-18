@@ -6,6 +6,7 @@
 package router
 
 import (
+	"context"
 	"errors"
 	"time"
 
@@ -32,7 +33,7 @@ func NewRouter(config *filterapi.Config, newCustomFn x.NewCustomRouterFn) (x.Rou
 }
 
 // Calculate implements [filterapi.Router.Calculate].
-func (r *router) Calculate(headers map[string]string) (backend *filterapi.Backend, err error) {
+func (r *router) Calculate(headers map[string]string, requestBody []byte) (backend *filterapi.Backend, err error) {
 	var rule *filterapi.RouteRule
 	for i := range r.rules {
 		_rule := &r.rules[i]
@@ -70,4 +71,9 @@ func (r *router) selectBackendFromRule(rule *filterapi.RouteRule) (backend *filt
 		selected -= b.Weight
 	}
 	return &rule.Backends[0]
+}
+
+// this method is not implemented in the base router, only in the SemanticCacheRouter
+func (r *router) StoreInCache(ctx context.Context, model string, request []byte, response []byte) error {
+	return nil
 }

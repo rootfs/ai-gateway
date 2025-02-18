@@ -58,6 +58,16 @@ func (s *Server) LoadConfig(ctx context.Context, config *filterapi.Config) error
 	if err != nil {
 		return fmt.Errorf("cannot create request body parser: %w", err)
 	}
+
+	// Create semantic cache config if enabled
+	var semanticCacheConfig *x.SemanticCacheConfig
+	if config.SemanticCache != nil && config.SemanticCache.Address != "" {
+		semanticCacheConfig = &x.SemanticCacheConfig{
+			Address:             config.SemanticCache.Address,
+			SimilarityThreshold: config.SemanticCache.SimilarityThreshold,
+		}
+	}
+
 	rt, err := router.NewRouter(config, x.NewCustomRouter)
 	if err != nil {
 		return fmt.Errorf("cannot create router: %w", err)
@@ -104,16 +114,23 @@ func (s *Server) LoadConfig(ctx context.Context, config *filterapi.Config) error
 	}
 
 	newConfig := &processorConfig{
-		uuid:       config.UUID,
-		bodyParser: bodyParser, router: rt,
+		uuid:                     config.UUID,
+		bodyParser:               bodyParser,
+		router:                   rt,
 		selectedBackendHeaderKey: config.SelectedBackendHeaderKey,
 		modelNameHeaderKey:       config.ModelNameHeaderKey,
 		backendAuthHandlers:      backendAuthHandlers,
 		metadataNamespace:        config.MetadataNamespace,
 		requestCosts:             costs,
 		declaredModels:           declaredModels,
+		semanticCache:            semanticCacheConfig,
 	}
-	s.config = newConfig // This is racey, but we don't care.
+
+	if err := validateConfig(newConfig); err != nil {
+		return fmt.Errorf("invalid configuration: %w", err)
+	}
+
+	s.config = newConfig
 	return nil
 }
 
@@ -309,4 +326,29 @@ func headersToMap(headers *corev3.HeaderMap) map[string]string {
 		}
 	}
 	return hdrs
+}
+
+// validateConfig validates the processor configuration.
+func validateConfig(config *processorConfig) error {
+	if config.bodyParser == nil {
+		return errors.New("body parser is required")
+	}
+	if config.router == nil {
+		return errors.New("router is required")
+	}
+	if config.modelNameHeaderKey == "" {
+		return errors.New("model name header key is required")
+	}
+	if config.selectedBackendHeaderKey == "" {
+		return errors.New("selected backend header key is required")
+	}
+	if config.semanticCache != nil {
+		if config.semanticCache.Address == "" {
+			return errors.New("semantic cache address is required when semantic cache is enabled")
+		}
+		if config.semanticCache.SimilarityThreshold <= 0 || config.semanticCache.SimilarityThreshold > 1 {
+			return errors.New("semantic cache similarity threshold must be between 0 and 1")
+		}
+	}
+	return nil
 }
