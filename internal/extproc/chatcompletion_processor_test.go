@@ -90,7 +90,11 @@ func TestChatCompletion_ProcessResponseHeaders(t *testing.T) {
 func TestChatCompletion_ProcessResponseBody(t *testing.T) {
 	t.Run("error translation", func(t *testing.T) {
 		mt := &mockTranslator{t: t}
-		p := &chatCompletionProcessor{translator: mt}
+		p := &chatCompletionProcessor{
+			translator: mt,
+			logger:     slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{})),
+			config:     &processorConfig{},
+		}
 		mt.retErr = errors.New("test error")
 		_, err := p.ProcessResponseBody(t.Context(), &extprocv3.HttpBody{})
 		require.ErrorContains(t, err, "test error")

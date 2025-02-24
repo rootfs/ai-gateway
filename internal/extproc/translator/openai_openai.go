@@ -11,11 +11,13 @@ import (
 	"fmt"
 	"io"
 	"strconv"
+	"time"
 
 	extprocv3http "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/ext_proc/v3"
 	extprocv3 "github.com/envoyproxy/go-control-plane/envoy/service/ext_proc/v3"
 
 	"github.com/envoyproxy/ai-gateway/internal/apischema/openai"
+	"github.com/envoyproxy/ai-gateway/internal/metrics"
 )
 
 // NewChatCompletionOpenAIToOpenAITranslator implements [Factory] for OpenAI to OpenAI translation.
@@ -28,6 +30,12 @@ type openAIToOpenAITranslatorV1ChatCompletion struct {
 	stream        bool
 	buffered      []byte
 	bufferingDone bool
+	// Add new fields for tracking streaming metrics
+	firstTokenSent bool
+	requestStart   time.Time
+	lastTokenTime  time.Time
+	backendName    string
+	modelName      string
 }
 
 // RequestBody implements [Translator.RequestBody].
@@ -47,6 +55,7 @@ func (o *openAIToOpenAITranslatorV1ChatCompletion) RequestBody(body RequestBody)
 			ResponseBodyMode:   extprocv3http.ProcessingMode_STREAMED,
 		}
 	}
+	o.requestStart = time.Now()
 	return nil, nil, override, nil
 }
 
@@ -89,7 +98,7 @@ func (o *openAIToOpenAITranslatorV1ChatCompletion) ResponseHeaders(map[string]st
 }
 
 // ResponseBody implements [Translator.ResponseBody].
-func (o *openAIToOpenAITranslatorV1ChatCompletion) ResponseBody(respHeaders map[string]string, body io.Reader, _ bool) (
+func (o *openAIToOpenAITranslatorV1ChatCompletion) ResponseBody(respHeaders map[string]string, body io.Reader, _ bool, backendName, modelName string) (
 	headerMutation *extprocv3.HeaderMutation, bodyMutation *extprocv3.BodyMutation, tokenUsage LLMTokenUsage, err error,
 ) {
 	if v, ok := respHeaders[statusHeaderName]; ok {
@@ -101,6 +110,8 @@ func (o *openAIToOpenAITranslatorV1ChatCompletion) ResponseBody(respHeaders map[
 		}
 	}
 	if o.stream {
+		o.backendName = backendName
+		o.modelName = modelName
 		if !o.bufferingDone {
 			buf, err := io.ReadAll(body)
 			if err != nil {
@@ -151,6 +162,27 @@ func (o *openAIToOpenAITranslatorV1ChatCompletion) extractUsageFromBufferEvent()
 			o.bufferingDone = true
 			o.buffered = nil
 			return
+		}
+		if o.backendName != "" && o.modelName != "" {
+			now := time.Now()
+			if !o.firstTokenSent {
+				o.firstTokenSent = true
+				metrics.FirstTokenLatency.WithLabelValues(o.backendName, o.modelName).
+					Observe(now.Sub(o.requestStart).Seconds())
+			} else {
+				// Calculate the time between tokens.
+				// Since we are only interested in the time between tokens, and openai streaming is by chunk,
+				// we can calculate the time between tokens by the time between the last token and the current token, divided by the number of tokens.
+				// And in some cases, the number of tokens can be 0, so we need to check for that.
+				div := tokenUsage.OutputTokens
+				if div == 0 {
+					div = 1
+				}
+				itl := now.Sub(o.lastTokenTime).Seconds() / float64(div)
+				metrics.InterTokenLatency.WithLabelValues(o.backendName, o.modelName).
+					Observe(itl)
+				o.lastTokenTime = now
+			}
 		}
 	}
 }

@@ -184,7 +184,7 @@ func (c *chatCompletionProcessor) ProcessResponseBody(_ context.Context, body *e
 		return &extprocv3.ProcessingResponse{Response: &extprocv3.ProcessingResponse_ResponseBody{}}, nil
 	}
 
-	headerMutation, bodyMutation, tokenUsage, err := c.translator.ResponseBody(c.responseHeaders, br, body.EndOfStream)
+	headerMutation, bodyMutation, tokenUsage, err := c.translator.ResponseBody(c.responseHeaders, br, body.EndOfStream, c.requestHeaders[c.config.modelNameHeaderKey], c.requestHeaders[c.config.selectedBackendHeaderKey])
 	if err != nil {
 		return nil, fmt.Errorf("failed to transform response: %w", err)
 	}

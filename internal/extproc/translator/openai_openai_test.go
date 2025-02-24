@@ -169,7 +169,7 @@ data: [DONE]
 
 		o := &openAIToOpenAITranslatorV1ChatCompletion{stream: true}
 		for i := 0; i < len(wholeBody); i++ {
-			hm, bm, tokenUsage, err := o.ResponseBody(nil, bytes.NewReader(wholeBody[i:i+1]), false)
+			hm, bm, tokenUsage, err := o.ResponseBody(nil, bytes.NewReader(wholeBody[i:i+1]), false, "", "")
 			require.NoError(t, err)
 			require.Nil(t, hm)
 			require.Nil(t, bm)
@@ -181,7 +181,7 @@ data: [DONE]
 	t.Run("non-streaming", func(t *testing.T) {
 		t.Run("invalid body", func(t *testing.T) {
 			o := &openAIToOpenAITranslatorV1ChatCompletion{}
-			_, _, _, err := o.ResponseBody(nil, bytes.NewBuffer([]byte("invalid")), false)
+			_, _, _, err := o.ResponseBody(nil, bytes.NewBuffer([]byte("invalid")), false, "", "")
 			require.Error(t, err)
 		})
 		t.Run("valid body", func(t *testing.T) {
@@ -190,7 +190,7 @@ data: [DONE]
 			body, err := json.Marshal(resp)
 			require.NoError(t, err)
 			o := &openAIToOpenAITranslatorV1ChatCompletion{}
-			_, _, usedToken, err := o.ResponseBody(nil, bytes.NewBuffer(body), false)
+			_, _, usedToken, err := o.ResponseBody(nil, bytes.NewBuffer(body), false, "", "")
 			require.NoError(t, err)
 			require.Equal(t, LLMTokenUsage{TotalTokens: 42}, usedToken)
 		})
