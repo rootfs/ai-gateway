@@ -156,8 +156,12 @@ var RoutingProcessor_ServiceDesc = grpc.ServiceDesc{
 }
 
 const (
-	SemanticCacheService_SearchCache_FullMethodName = "/routing_processor.v1alpha1.SemanticCacheService/SearchCache"
-	SemanticCacheService_StoreChat_FullMethodName   = "/routing_processor.v1alpha1.SemanticCacheService/StoreChat"
+	SemanticCacheService_SearchCache_FullMethodName         = "/routing_processor.v1alpha1.SemanticCacheService/SearchCache"
+	SemanticCacheService_StoreChat_FullMethodName           = "/routing_processor.v1alpha1.SemanticCacheService/StoreChat"
+	SemanticCacheService_InitiateCacheSearch_FullMethodName = "/routing_processor.v1alpha1.SemanticCacheService/InitiateCacheSearch"
+	SemanticCacheService_CompleteCacheSearch_FullMethodName = "/routing_processor.v1alpha1.SemanticCacheService/CompleteCacheSearch"
+	SemanticCacheService_InitiateCacheStore_FullMethodName  = "/routing_processor.v1alpha1.SemanticCacheService/InitiateCacheStore"
+	SemanticCacheService_CompleteCacheStore_FullMethodName  = "/routing_processor.v1alpha1.SemanticCacheService/CompleteCacheStore"
 )
 
 // SemanticCacheServiceClient is the client API for SemanticCacheService service.
@@ -166,6 +170,10 @@ const (
 type SemanticCacheServiceClient interface {
 	SearchCache(ctx context.Context, in *SearchRequest, opts ...grpc.CallOption) (*SearchResponse, error)
 	StoreChat(ctx context.Context, in *StoreChatRequest, opts ...grpc.CallOption) (*StoreChatResponse, error)
+	InitiateCacheSearch(ctx context.Context, in *InitiateCacheSearchRequest, opts ...grpc.CallOption) (*InitiateCacheSearchResponse, error)
+	CompleteCacheSearch(ctx context.Context, in *CompleteCacheSearchRequest, opts ...grpc.CallOption) (*SearchResponse, error)
+	InitiateCacheStore(ctx context.Context, in *InitiateCacheStoreRequest, opts ...grpc.CallOption) (*InitiateCacheStoreResponse, error)
+	CompleteCacheStore(ctx context.Context, in *CompleteCacheStoreRequest, opts ...grpc.CallOption) (*StoreChatResponse, error)
 }
 
 type semanticCacheServiceClient struct {
@@ -196,12 +204,56 @@ func (c *semanticCacheServiceClient) StoreChat(ctx context.Context, in *StoreCha
 	return out, nil
 }
 
+func (c *semanticCacheServiceClient) InitiateCacheSearch(ctx context.Context, in *InitiateCacheSearchRequest, opts ...grpc.CallOption) (*InitiateCacheSearchResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(InitiateCacheSearchResponse)
+	err := c.cc.Invoke(ctx, SemanticCacheService_InitiateCacheSearch_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *semanticCacheServiceClient) CompleteCacheSearch(ctx context.Context, in *CompleteCacheSearchRequest, opts ...grpc.CallOption) (*SearchResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SearchResponse)
+	err := c.cc.Invoke(ctx, SemanticCacheService_CompleteCacheSearch_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *semanticCacheServiceClient) InitiateCacheStore(ctx context.Context, in *InitiateCacheStoreRequest, opts ...grpc.CallOption) (*InitiateCacheStoreResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(InitiateCacheStoreResponse)
+	err := c.cc.Invoke(ctx, SemanticCacheService_InitiateCacheStore_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *semanticCacheServiceClient) CompleteCacheStore(ctx context.Context, in *CompleteCacheStoreRequest, opts ...grpc.CallOption) (*StoreChatResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(StoreChatResponse)
+	err := c.cc.Invoke(ctx, SemanticCacheService_CompleteCacheStore_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // SemanticCacheServiceServer is the server API for SemanticCacheService service.
 // All implementations must embed UnimplementedSemanticCacheServiceServer
 // for forward compatibility.
 type SemanticCacheServiceServer interface {
 	SearchCache(context.Context, *SearchRequest) (*SearchResponse, error)
 	StoreChat(context.Context, *StoreChatRequest) (*StoreChatResponse, error)
+	InitiateCacheSearch(context.Context, *InitiateCacheSearchRequest) (*InitiateCacheSearchResponse, error)
+	CompleteCacheSearch(context.Context, *CompleteCacheSearchRequest) (*SearchResponse, error)
+	InitiateCacheStore(context.Context, *InitiateCacheStoreRequest) (*InitiateCacheStoreResponse, error)
+	CompleteCacheStore(context.Context, *CompleteCacheStoreRequest) (*StoreChatResponse, error)
 	mustEmbedUnimplementedSemanticCacheServiceServer()
 }
 
@@ -217,6 +269,18 @@ func (UnimplementedSemanticCacheServiceServer) SearchCache(context.Context, *Sea
 }
 func (UnimplementedSemanticCacheServiceServer) StoreChat(context.Context, *StoreChatRequest) (*StoreChatResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method StoreChat not implemented")
+}
+func (UnimplementedSemanticCacheServiceServer) InitiateCacheSearch(context.Context, *InitiateCacheSearchRequest) (*InitiateCacheSearchResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method InitiateCacheSearch not implemented")
+}
+func (UnimplementedSemanticCacheServiceServer) CompleteCacheSearch(context.Context, *CompleteCacheSearchRequest) (*SearchResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CompleteCacheSearch not implemented")
+}
+func (UnimplementedSemanticCacheServiceServer) InitiateCacheStore(context.Context, *InitiateCacheStoreRequest) (*InitiateCacheStoreResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method InitiateCacheStore not implemented")
+}
+func (UnimplementedSemanticCacheServiceServer) CompleteCacheStore(context.Context, *CompleteCacheStoreRequest) (*StoreChatResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CompleteCacheStore not implemented")
 }
 func (UnimplementedSemanticCacheServiceServer) mustEmbedUnimplementedSemanticCacheServiceServer() {}
 func (UnimplementedSemanticCacheServiceServer) testEmbeddedByValue()                              {}
@@ -275,6 +339,78 @@ func _SemanticCacheService_StoreChat_Handler(srv interface{}, ctx context.Contex
 	return interceptor(ctx, in, info, handler)
 }
 
+func _SemanticCacheService_InitiateCacheSearch_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(InitiateCacheSearchRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SemanticCacheServiceServer).InitiateCacheSearch(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SemanticCacheService_InitiateCacheSearch_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SemanticCacheServiceServer).InitiateCacheSearch(ctx, req.(*InitiateCacheSearchRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _SemanticCacheService_CompleteCacheSearch_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CompleteCacheSearchRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SemanticCacheServiceServer).CompleteCacheSearch(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SemanticCacheService_CompleteCacheSearch_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SemanticCacheServiceServer).CompleteCacheSearch(ctx, req.(*CompleteCacheSearchRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _SemanticCacheService_InitiateCacheStore_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(InitiateCacheStoreRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SemanticCacheServiceServer).InitiateCacheStore(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SemanticCacheService_InitiateCacheStore_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SemanticCacheServiceServer).InitiateCacheStore(ctx, req.(*InitiateCacheStoreRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _SemanticCacheService_CompleteCacheStore_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CompleteCacheStoreRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SemanticCacheServiceServer).CompleteCacheStore(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SemanticCacheService_CompleteCacheStore_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SemanticCacheServiceServer).CompleteCacheStore(ctx, req.(*CompleteCacheStoreRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // SemanticCacheService_ServiceDesc is the grpc.ServiceDesc for SemanticCacheService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -289,6 +425,22 @@ var SemanticCacheService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "StoreChat",
 			Handler:    _SemanticCacheService_StoreChat_Handler,
+		},
+		{
+			MethodName: "InitiateCacheSearch",
+			Handler:    _SemanticCacheService_InitiateCacheSearch_Handler,
+		},
+		{
+			MethodName: "CompleteCacheSearch",
+			Handler:    _SemanticCacheService_CompleteCacheSearch_Handler,
+		},
+		{
+			MethodName: "InitiateCacheStore",
+			Handler:    _SemanticCacheService_InitiateCacheStore_Handler,
+		},
+		{
+			MethodName: "CompleteCacheStore",
+			Handler:    _SemanticCacheService_CompleteCacheStore_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

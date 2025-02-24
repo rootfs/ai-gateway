@@ -165,6 +165,26 @@ class SemanticCacheServiceStub(object):
                 request_serializer=routing__processor__pb2.StoreChatRequest.SerializeToString,
                 response_deserializer=routing__processor__pb2.StoreChatResponse.FromString,
                 _registered_method=True)
+        self.InitiateCacheSearch = channel.unary_unary(
+                '/routing_processor.v1alpha1.SemanticCacheService/InitiateCacheSearch',
+                request_serializer=routing__processor__pb2.InitiateCacheSearchRequest.SerializeToString,
+                response_deserializer=routing__processor__pb2.InitiateCacheSearchResponse.FromString,
+                _registered_method=True)
+        self.CompleteCacheSearch = channel.unary_unary(
+                '/routing_processor.v1alpha1.SemanticCacheService/CompleteCacheSearch',
+                request_serializer=routing__processor__pb2.CompleteCacheSearchRequest.SerializeToString,
+                response_deserializer=routing__processor__pb2.SearchResponse.FromString,
+                _registered_method=True)
+        self.InitiateCacheStore = channel.unary_unary(
+                '/routing_processor.v1alpha1.SemanticCacheService/InitiateCacheStore',
+                request_serializer=routing__processor__pb2.InitiateCacheStoreRequest.SerializeToString,
+                response_deserializer=routing__processor__pb2.InitiateCacheStoreResponse.FromString,
+                _registered_method=True)
+        self.CompleteCacheStore = channel.unary_unary(
+                '/routing_processor.v1alpha1.SemanticCacheService/CompleteCacheStore',
+                request_serializer=routing__processor__pb2.CompleteCacheStoreRequest.SerializeToString,
+                response_deserializer=routing__processor__pb2.StoreChatResponse.FromString,
+                _registered_method=True)
 
 
 class SemanticCacheServiceServicer(object):
@@ -182,6 +202,30 @@ class SemanticCacheServiceServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def InitiateCacheSearch(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def CompleteCacheSearch(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def InitiateCacheStore(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def CompleteCacheStore(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
 
 def add_SemanticCacheServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
@@ -193,6 +237,26 @@ def add_SemanticCacheServiceServicer_to_server(servicer, server):
             'StoreChat': grpc.unary_unary_rpc_method_handler(
                     servicer.StoreChat,
                     request_deserializer=routing__processor__pb2.StoreChatRequest.FromString,
+                    response_serializer=routing__processor__pb2.StoreChatResponse.SerializeToString,
+            ),
+            'InitiateCacheSearch': grpc.unary_unary_rpc_method_handler(
+                    servicer.InitiateCacheSearch,
+                    request_deserializer=routing__processor__pb2.InitiateCacheSearchRequest.FromString,
+                    response_serializer=routing__processor__pb2.InitiateCacheSearchResponse.SerializeToString,
+            ),
+            'CompleteCacheSearch': grpc.unary_unary_rpc_method_handler(
+                    servicer.CompleteCacheSearch,
+                    request_deserializer=routing__processor__pb2.CompleteCacheSearchRequest.FromString,
+                    response_serializer=routing__processor__pb2.SearchResponse.SerializeToString,
+            ),
+            'InitiateCacheStore': grpc.unary_unary_rpc_method_handler(
+                    servicer.InitiateCacheStore,
+                    request_deserializer=routing__processor__pb2.InitiateCacheStoreRequest.FromString,
+                    response_serializer=routing__processor__pb2.InitiateCacheStoreResponse.SerializeToString,
+            ),
+            'CompleteCacheStore': grpc.unary_unary_rpc_method_handler(
+                    servicer.CompleteCacheStore,
+                    request_deserializer=routing__processor__pb2.CompleteCacheStoreRequest.FromString,
                     response_serializer=routing__processor__pb2.StoreChatResponse.SerializeToString,
             ),
     }
@@ -249,6 +313,114 @@ class SemanticCacheService(object):
             target,
             '/routing_processor.v1alpha1.SemanticCacheService/StoreChat',
             routing__processor__pb2.StoreChatRequest.SerializeToString,
+            routing__processor__pb2.StoreChatResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def InitiateCacheSearch(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/routing_processor.v1alpha1.SemanticCacheService/InitiateCacheSearch',
+            routing__processor__pb2.InitiateCacheSearchRequest.SerializeToString,
+            routing__processor__pb2.InitiateCacheSearchResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def CompleteCacheSearch(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/routing_processor.v1alpha1.SemanticCacheService/CompleteCacheSearch',
+            routing__processor__pb2.CompleteCacheSearchRequest.SerializeToString,
+            routing__processor__pb2.SearchResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def InitiateCacheStore(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/routing_processor.v1alpha1.SemanticCacheService/InitiateCacheStore',
+            routing__processor__pb2.InitiateCacheStoreRequest.SerializeToString,
+            routing__processor__pb2.InitiateCacheStoreResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def CompleteCacheStore(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/routing_processor.v1alpha1.SemanticCacheService/CompleteCacheStore',
+            routing__processor__pb2.CompleteCacheStoreRequest.SerializeToString,
             routing__processor__pb2.StoreChatResponse.FromString,
             options,
             channel_credentials,

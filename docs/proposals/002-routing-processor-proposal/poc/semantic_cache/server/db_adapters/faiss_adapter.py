@@ -19,8 +19,13 @@ class FAISSAdapter(VectorDBAdapterBase):
         self.save_index()
 
     def load_index(self):
-        with open(self.index_file, 'rb') as f:
-            self.index = faiss.read_index(f.read())
+        try:
+            with open(self.index_file, 'rb') as f:
+                self.index = faiss.read_index(self.index_file)
+        except FileNotFoundError:
+            # Create a new index if file doesn't exist
+            self.index = faiss.IndexFlatL2(self.dim)
+            self.save_index()
         with open(self.metadata_file, 'rb') as f:
             self.metadata = pickle.load(f)
 

@@ -214,9 +214,10 @@ message StoreChatResponse {
 message CapabilitiesRequest {}
 
 message CapabilitiesResponse {
-  bool semantic_cache_supported = 1;
-  bool model_selection_supported = 2;
-  bool immediate_response_supported = 3;
+  bool stateless_semantic_cache_supported = 1; // Semantic cache that does not require keeping request ids
+  bool stateful_semantic_cache_supported = 2; // Semantic cache that requires keeping request ids
+  bool model_selection_supported = 3; // Model selection supported
+  bool immediate_response_supported = 4; // Immediate response supported
 }
 
 // ===== Services =====
@@ -229,4 +230,40 @@ service RoutingProcessor {
 service SemanticCacheService {
   rpc SearchCache(SearchRequest) returns (SearchResponse) {}
   rpc StoreChat(StoreChatRequest) returns (StoreChatResponse) {}
+  
+  rpc InitiateCacheSearch(InitiateCacheSearchRequest) returns (InitiateCacheSearchResponse) {}
+  rpc CompleteCacheSearch(CompleteCacheSearchRequest) returns (SearchResponse) {}
+  
+  rpc InitiateCacheStore(InitiateCacheStoreRequest) returns (InitiateCacheStoreResponse) {}
+  rpc CompleteCacheStore(CompleteCacheStoreRequest) returns (StoreChatResponse) {}
+}
+
+message InitiateCacheSearchRequest {
+  repeated Message messages = 1;
+  float similarity_threshold = 2;
+  string model = 3;
+}
+
+message InitiateCacheSearchResponse {
+  string request_id = 1;  // Unique ID for this search request
+}
+
+message CompleteCacheSearchRequest {
+  string request_id = 1;  // ID from InitiateCacheSearchResponse
+}
+
+message InitiateCacheStoreRequest {
+  repeated Message request_messages = 1;
+  string model = 2;
+  string ttl = 3;
+}
+
+message InitiateCacheStoreResponse {
+  string request_id = 1;  // Unique ID for this store request
+}
+
+message CompleteCacheStoreRequest {
+  string request_id = 1;  // ID from InitiateCacheStoreResponse
+  repeated Message response_messages = 2;
+  Usage usage = 3;
 }
