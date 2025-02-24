@@ -14,6 +14,7 @@ require (
 	github.com/google/cel-go v0.23.2
 	github.com/google/go-cmp v0.7.0
 	github.com/openai/openai-go v0.1.0-alpha.59
+	github.com/prometheus/client_golang v1.20.5
 	github.com/stretchr/testify v1.10.0
 	go.uber.org/goleak v1.3.0
 	go.uber.org/zap v1.27.0

@@ -12,6 +12,7 @@ import (
 	"io"
 	"strconv"
 	"testing"
+	"time"
 
 	extprocv3http "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/ext_proc/v3"
 	extprocv3 "github.com/envoyproxy/go-control-plane/envoy/service/ext_proc/v3"
@@ -20,6 +21,7 @@ import (
 	"k8s.io/utils/ptr"
 
 	"github.com/envoyproxy/ai-gateway/internal/apischema/openai"
+	"github.com/envoyproxy/ai-gateway/internal/metrics"
 )
 
 func TestOpenAIToOpenAITranslatorV1ChatCompletionRequestBody(t *testing.T) {
@@ -167,9 +169,16 @@ data: [DONE]
 
 `)
 
-		o := &openAIToOpenAITranslatorV1ChatCompletion{stream: true}
+		o := &openAIToOpenAITranslatorV1ChatCompletion{
+			stream:         true,
+			metrics:        metrics.GetOrCreate(),
+			firstTokenSent: true,
+			requestStart:   time.Now(),
+			backendName:    "test-backend",
+			modelName:      "test-model",
+		}
 		for i := 0; i < len(wholeBody); i++ {
-			hm, bm, tokenUsage, err := o.ResponseBody(nil, bytes.NewReader(wholeBody[i:i+1]), false)
+			hm, bm, tokenUsage, err := o.ResponseBody(nil, bytes.NewReader(wholeBody[i:i+1]), false, "test-backend", "test-model")
 			require.NoError(t, err)
 			require.Nil(t, hm)
 			require.Nil(t, bm)
@@ -180,8 +189,14 @@ data: [DONE]
 	})
 	t.Run("non-streaming", func(t *testing.T) {
 		t.Run("invalid body", func(t *testing.T) {
-			o := &openAIToOpenAITranslatorV1ChatCompletion{}
-			_, _, _, err := o.ResponseBody(nil, bytes.NewBuffer([]byte("invalid")), false)
+			o := &openAIToOpenAITranslatorV1ChatCompletion{
+				metrics:        metrics.GetOrCreate(),
+				firstTokenSent: true,
+				requestStart:   time.Now(),
+				backendName:    "test-backend",
+				modelName:      "test-model",
+			}
+			_, _, _, err := o.ResponseBody(nil, bytes.NewBuffer([]byte("invalid")), false, "test-backend", "test-model")
 			require.Error(t, err)
 		})
 		t.Run("valid body", func(t *testing.T) {
@@ -189,8 +204,14 @@ data: [DONE]
 			resp.Usage.TotalTokens = 42
 			body, err := json.Marshal(resp)
 			require.NoError(t, err)
-			o := &openAIToOpenAITranslatorV1ChatCompletion{}
-			_, _, usedToken, err := o.ResponseBody(nil, bytes.NewBuffer(body), false)
+			o := &openAIToOpenAITranslatorV1ChatCompletion{
+				metrics:        metrics.GetOrCreate(),
+				firstTokenSent: true,
+				requestStart:   time.Now(),
+				backendName:    "test-backend",
+				modelName:      "test-model",
+			}
+			_, _, usedToken, err := o.ResponseBody(nil, bytes.NewBuffer(body), false, "test-backend", "test-model")
 			require.NoError(t, err)
 			require.Equal(t, LLMTokenUsage{TotalTokens: 42}, usedToken)
 		})
