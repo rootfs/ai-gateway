@@ -23,11 +23,14 @@ import (
 
 	"github.com/envoyproxy/ai-gateway/internal/apischema/awsbedrock"
 	"github.com/envoyproxy/ai-gateway/internal/apischema/openai"
+	"github.com/envoyproxy/ai-gateway/internal/metrics"
 )
 
 // NewChatCompletionOpenAIToAWSBedrockTranslator implements [Factory] for OpenAI to AWS Bedrock translation.
 func NewChatCompletionOpenAIToAWSBedrockTranslator() Translator {
-	return &openAIToAWSBedrockTranslatorV1ChatCompletion{}
+	return &openAIToAWSBedrockTranslatorV1ChatCompletion{
+		tokenMetrics: metrics.NewTokenMetrics(),
+	}
 }
 
 // openAIToAWSBedrockTranslator implements [Translator] for /v1/chat/completions.
@@ -38,6 +41,10 @@ type openAIToAWSBedrockTranslatorV1ChatCompletion struct {
 	// role is from MessageStartEvent in chunked messages, and used for all openai chat completion chunk choices.
 	// Translator is created for each request/response stream inside external processor, accordingly the role is not reused by multiple streams
 	role string
+	// Metrics
+	tokenMetrics *metrics.TokenMetrics
+	backendName  string
+	modelName    string
 }
 
 // RequestBody implements [Translator.RequestBody].
@@ -98,6 +105,7 @@ func (o *openAIToAWSBedrockTranslatorV1ChatCompletion) RequestBody(body RequestB
 		return nil, nil, nil, fmt.Errorf("failed to marshal body: %w", err)
 	}
 	setContentLength(headerMutation, mut.Body)
+	o.tokenMetrics.StartRequest(o.backendName, o.modelName)
 	return headerMutation, &extprocv3.BodyMutation{Mutation: mut}, override, nil
 }
 
@@ -504,9 +512,14 @@ func (o *openAIToAWSBedrockTranslatorV1ChatCompletion) ResponseError(respHeaders
 }
 
 // ResponseBody implements [Translator.ResponseBody].
-func (o *openAIToAWSBedrockTranslatorV1ChatCompletion) ResponseBody(respHeaders map[string]string, body io.Reader, endOfStream bool) (
+func (o *openAIToAWSBedrockTranslatorV1ChatCompletion) ResponseBody(respHeaders map[string]string, body io.Reader, endOfStream bool, backendName, modelName string) (
 	headerMutation *extprocv3.HeaderMutation, bodyMutation *extprocv3.BodyMutation, tokenUsage LLMTokenUsage, err error,
 ) {
+	// Set these values at the start of processing
+	o.backendName = backendName
+	o.modelName = modelName
+	o.tokenMetrics.StartRequest(backendName, modelName)
+
 	if statusStr, ok := respHeaders[statusHeaderName]; ok {
 		var status int
 		if status, err = strconv.Atoi(statusStr); err == nil {
@@ -551,7 +564,9 @@ func (o *openAIToAWSBedrockTranslatorV1ChatCompletion) ResponseBody(respHeaders 
 
 		if endOfStream {
 			mut.Body = append(mut.Body, []byte("data: [DONE]\n")...)
+			o.tokenMetrics.UpdateRequestMetrics(o.backendName, o.modelName, "success")
 		}
+
 		return headerMutation, &extprocv3.BodyMutation{Mutation: mut}, tokenUsage, nil
 	}
 
@@ -603,6 +618,8 @@ func (o *openAIToAWSBedrockTranslatorV1ChatCompletion) ResponseBody(respHeaders 
 	}
 	headerMutation = &extprocv3.HeaderMutation{}
 	setContentLength(headerMutation, mut.Body)
+	o.tokenMetrics.UpdateTokenMetrics(o.backendName, o.modelName, tokenUsage.OutputTokens, tokenUsage.InputTokens, tokenUsage.TotalTokens)
+	o.tokenMetrics.UpdateLatencyMetrics(o.backendName, o.modelName, tokenUsage.OutputTokens)
 	return headerMutation, &extprocv3.BodyMutation{Mutation: mut}, tokenUsage, nil
 }
 
@@ -646,6 +663,8 @@ func (o *openAIToAWSBedrockTranslatorV1ChatCompletion) convertEvent(event *awsbe
 			PromptTokens:     event.Usage.InputTokens,
 			CompletionTokens: event.Usage.OutputTokens,
 		}
+		o.tokenMetrics.UpdateTokenMetrics(o.backendName, o.modelName, uint32(event.Usage.OutputTokens), uint32(event.Usage.InputTokens), uint32(event.Usage.TotalTokens))
+		o.tokenMetrics.UpdateLatencyMetrics(o.backendName, o.modelName, uint32(event.Usage.OutputTokens))
 	case event.Role != nil:
 		chunk.Choices = append(chunk.Choices, openai.ChatCompletionResponseChunkChoice{
 			Delta: &openai.ChatCompletionResponseChunkChoiceDelta{

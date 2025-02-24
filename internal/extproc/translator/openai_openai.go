@@ -16,11 +16,14 @@ import (
 	extprocv3 "github.com/envoyproxy/go-control-plane/envoy/service/ext_proc/v3"
 
 	"github.com/envoyproxy/ai-gateway/internal/apischema/openai"
+	"github.com/envoyproxy/ai-gateway/internal/metrics"
 )
 
 // NewChatCompletionOpenAIToOpenAITranslator implements [Factory] for OpenAI to OpenAI translation.
 func NewChatCompletionOpenAIToOpenAITranslator() Translator {
-	return &openAIToOpenAITranslatorV1ChatCompletion{}
+	return &openAIToOpenAITranslatorV1ChatCompletion{
+		tokenMetrics: metrics.NewTokenMetrics(),
+	}
 }
 
 // openAIToOpenAITranslatorV1ChatCompletion implements [Translator] for /v1/chat/completions.
@@ -28,6 +31,10 @@ type openAIToOpenAITranslatorV1ChatCompletion struct {
 	stream        bool
 	buffered      []byte
 	bufferingDone bool
+	// Metrics
+	tokenMetrics *metrics.TokenMetrics
+	backendName  string
+	modelName    string
 }
 
 // RequestBody implements [Translator.RequestBody].
@@ -47,6 +54,8 @@ func (o *openAIToOpenAITranslatorV1ChatCompletion) RequestBody(body RequestBody)
 			ResponseBodyMode:   extprocv3http.ProcessingMode_STREAMED,
 		}
 	}
+
+	o.tokenMetrics.StartRequest(o.backendName, o.modelName)
 	return nil, nil, override, nil
 }
 
@@ -89,7 +98,7 @@ func (o *openAIToOpenAITranslatorV1ChatCompletion) ResponseHeaders(map[string]st
 }
 
 // ResponseBody implements [Translator.ResponseBody].
-func (o *openAIToOpenAITranslatorV1ChatCompletion) ResponseBody(respHeaders map[string]string, body io.Reader, _ bool) (
+func (o *openAIToOpenAITranslatorV1ChatCompletion) ResponseBody(respHeaders map[string]string, body io.Reader, _ bool, backendName, modelName string) (
 	headerMutation *extprocv3.HeaderMutation, bodyMutation *extprocv3.BodyMutation, tokenUsage LLMTokenUsage, err error,
 ) {
 	if v, ok := respHeaders[statusHeaderName]; ok {
@@ -100,6 +109,8 @@ func (o *openAIToOpenAITranslatorV1ChatCompletion) ResponseBody(respHeaders map[
 			}
 		}
 	}
+	o.backendName = backendName
+	o.modelName = modelName
 	if o.stream {
 		if !o.bufferingDone {
 			buf, err := io.ReadAll(body)
@@ -120,6 +131,7 @@ func (o *openAIToOpenAITranslatorV1ChatCompletion) ResponseBody(respHeaders map[
 		OutputTokens: uint32(resp.Usage.CompletionTokens), //nolint:gosec
 		TotalTokens:  uint32(resp.Usage.TotalTokens),      //nolint:gosec
 	}
+	o.tokenMetrics.UpdateTokenMetrics(o.backendName, o.modelName, tokenUsage.OutputTokens, tokenUsage.InputTokens, tokenUsage.TotalTokens)
 	return
 }
 
@@ -150,7 +162,10 @@ func (o *openAIToOpenAITranslatorV1ChatCompletion) extractUsageFromBufferEvent()
 			}
 			o.bufferingDone = true
 			o.buffered = nil
+			o.tokenMetrics.UpdateTokenMetrics(o.backendName, o.modelName, tokenUsage.OutputTokens, tokenUsage.InputTokens, tokenUsage.TotalTokens)
+			o.tokenMetrics.UpdateLatencyMetrics(o.backendName, o.modelName, tokenUsage.OutputTokens)
 			return
 		}
+		o.tokenMetrics.UpdateLatencyMetrics(o.backendName, o.modelName, tokenUsage.OutputTokens)
 	}
 }

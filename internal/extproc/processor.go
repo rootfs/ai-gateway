@@ -8,6 +8,7 @@ package extproc
 import (
 	"context"
 	"log/slog"
+	"time"
 
 	corev3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	extprocv3 "github.com/envoyproxy/go-control-plane/envoy/service/ext_proc/v3"
@@ -16,6 +17,7 @@ import (
 	"github.com/envoyproxy/ai-gateway/filterapi"
 	"github.com/envoyproxy/ai-gateway/filterapi/x"
 	"github.com/envoyproxy/ai-gateway/internal/extproc/backendauth"
+	"github.com/envoyproxy/ai-gateway/internal/metrics"
 )
 
 // processorConfig is the configuration for the processor.
@@ -29,6 +31,10 @@ type processorConfig struct {
 	metadataNamespace                            string
 	requestCosts                                 []processorConfigRequestCost
 	declaredModels                               []string
+	requestStart                                 time.Time
+	modelName                                    string
+	backendName                                  string
+	metrics                                      *metrics.Metrics
 }
 
 // processorConfigRequestCost is the configuration for the request cost.

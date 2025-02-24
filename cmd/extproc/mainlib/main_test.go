@@ -21,6 +21,7 @@ func Test_parseAndValidateFlags(t *testing.T) {
 			configPath string
 			addr       string
 			logLevel   slog.Level
+			promAddr   string
 		}{
 			{
 				name:       "minimal extProcFlags",
@@ -28,6 +29,7 @@ func Test_parseAndValidateFlags(t *testing.T) {
 				configPath: "/path/to/config.yaml",
 				addr:       ":1063",
 				logLevel:   slog.LevelInfo,
+				promAddr:   ":9190",
 			},
 			{
 				name:       "custom addr",
@@ -35,6 +37,15 @@ func Test_parseAndValidateFlags(t *testing.T) {
 				configPath: "/path/to/config.yaml",
 				addr:       "unix:///tmp/ext_proc.sock",
 				logLevel:   slog.LevelInfo,
+				promAddr:   ":9190",
+			},
+			{
+				name:       "custom promAddr",
+				args:       []string{"-configPath", "/path/to/config.yaml", "-promAddr", ":8080"},
+				configPath: "/path/to/config.yaml",
+				addr:       ":1063",
+				logLevel:   slog.LevelInfo,
+				promAddr:   ":8080",
 			},
 			{
 				name:       "log level debug",
@@ -42,6 +53,7 @@ func Test_parseAndValidateFlags(t *testing.T) {
 				configPath: "/path/to/config.yaml",
 				addr:       ":1063",
 				logLevel:   slog.LevelDebug,
+				promAddr:   ":9190",
 			},
 			{
 				name:       "log level warn",
@@ -49,6 +61,7 @@ func Test_parseAndValidateFlags(t *testing.T) {
 				configPath: "/path/to/config.yaml",
 				addr:       ":1063",
 				logLevel:   slog.LevelWarn,
+				promAddr:   ":9190",
 			},
 			{
 				name:       "log level error",
@@ -56,17 +69,20 @@ func Test_parseAndValidateFlags(t *testing.T) {
 				configPath: "/path/to/config.yaml",
 				addr:       ":1063",
 				logLevel:   slog.LevelError,
+				promAddr:   ":9190",
 			},
 			{
-				name: "all extProcFlags",
+				name: "all flags",
 				args: []string{
 					"-configPath", "/path/to/config.yaml",
 					"-extProcAddr", "unix:///tmp/ext_proc.sock",
 					"-logLevel", "debug",
+					"-promAddr", ":8080",
 				},
 				configPath: "/path/to/config.yaml",
 				addr:       "unix:///tmp/ext_proc.sock",
 				logLevel:   slog.LevelDebug,
+				promAddr:   ":8080",
 			},
 		} {
 			t.Run(tc.name, func(t *testing.T) {
@@ -75,6 +91,7 @@ func Test_parseAndValidateFlags(t *testing.T) {
 				assert.Equal(t, tc.configPath, flags.configPath)
 				assert.Equal(t, tc.addr, flags.extProcAddr)
 				assert.Equal(t, tc.logLevel, flags.logLevel)
+				assert.Equal(t, tc.promAddr, flags.promAddr)
 			})
 		}
 	})
