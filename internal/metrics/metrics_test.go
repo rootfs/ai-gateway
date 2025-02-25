@@ -7,14 +7,12 @@ import (
 )
 
 func TestMetrics(t *testing.T) {
-	m := New()
+	m := new()
 	require.NotNil(t, m)
 	require.NotNil(t, m.Registry)
-	require.NotNil(t, m.BackendLatency)
+	require.NotNil(t, m.TotalLatency)
 	require.NotNil(t, m.TokensTotal)
 	require.NotNil(t, m.RequestsTotal)
-	require.NotNil(t, m.FirstTokenLatency)
-	require.NotNil(t, m.InterTokenLatency)
 }
 
 func TestGetOrCreate(t *testing.T) {

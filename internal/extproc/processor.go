@@ -43,9 +43,6 @@ type processorConfigRequestCost struct {
 	celProg cel.Program
 }
 
-type processorMetrics struct {
-}
-
 // ProcessorFactory is the factory function used to create new instances of a processor.
 type ProcessorFactory func(*processorConfig, map[string]string, *slog.Logger) (Processor, error)
 

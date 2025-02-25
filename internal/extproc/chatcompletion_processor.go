@@ -14,7 +14,6 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
-	"time"
 
 	corev3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	extprocv3 "github.com/envoyproxy/go-control-plane/envoy/service/ext_proc/v3"
@@ -38,7 +37,7 @@ func NewChatCompletionProcessor(config *processorConfig, requestHeaders map[stri
 		config:         config,
 		requestHeaders: requestHeaders,
 		logger:         logger,
-		metrics:        metrics.GetOrCreate(),
+		metrics:        metrics.NewTokenMetrics(),
 	}, nil
 }
 
@@ -53,10 +52,9 @@ type chatCompletionProcessor struct {
 	// cost is the cost of the request that is accumulated during the processing of the response.
 	costs translator.LLMTokenUsage
 	// for metrics
-	requestStart time.Time
-	modelName    string
-	backendName  string
-	metrics      *metrics.Metrics
+	metrics     *metrics.TokenMetrics
+	backendName string
+	modelName   string
 }
 
 // selectTranslator selects the translator based on the output schema.
@@ -86,18 +84,20 @@ func (c *chatCompletionProcessor) ProcessRequestHeaders(_ context.Context, _ *co
 
 // ProcessRequestBody implements [Processor.ProcessRequestBody].
 func (c *chatCompletionProcessor) ProcessRequestBody(ctx context.Context, rawBody *extprocv3.HttpBody) (res *extprocv3.ProcessingResponse, err error) {
-	c.requestStart = time.Now() // Track the start time of the request
+	c.backendName = "unknown"
+	c.modelName = "unknown"
 	model, body, err := parseOpenAIChatCompletionBody(rawBody)
 	if err != nil {
-		c.metrics.RequestsTotal.WithLabelValues("unknown", "unknown", "error").Inc()
+		c.metrics.UpdateRequestMetrics(c.backendName, c.modelName, "error")
 		return nil, fmt.Errorf("failed to parse request body: %w", err)
 	}
 	c.logger.Info("Processing request", "path", c.requestHeaders[":path"], "model", model)
 
 	c.requestHeaders[c.config.modelNameHeaderKey] = model
+	c.modelName = model
 	b, err := c.config.router.Calculate(c.requestHeaders)
 	if err != nil {
-		c.metrics.RequestsTotal.WithLabelValues("unknown", model, "error").Inc()
+		c.metrics.UpdateRequestMetrics(c.backendName, c.modelName, "error")
 		if errors.Is(err, x.ErrNoMatchingRule) {
 			return &extprocv3.ProcessingResponse{
 				Response: &extprocv3.ProcessingResponse_ImmediateResponse{
@@ -112,15 +112,15 @@ func (c *chatCompletionProcessor) ProcessRequestBody(ctx context.Context, rawBod
 		return nil, fmt.Errorf("failed to calculate route: %w", err)
 	}
 	c.logger.Info("Selected backend", "backend", b.Name)
-
+	c.backendName = b.Name
 	if err = c.selectTranslator(b.Schema); err != nil {
-		c.metrics.RequestsTotal.WithLabelValues(b.Name, model, "error").Inc()
+		c.metrics.UpdateRequestMetrics(c.backendName, c.modelName, "error")
 		return nil, fmt.Errorf("failed to select translator: %w", err)
 	}
 
 	headerMutation, bodyMutation, override, err := c.translator.RequestBody(body)
 	if err != nil {
-		c.metrics.RequestsTotal.WithLabelValues(b.Name, model, "error").Inc()
+		c.metrics.UpdateRequestMetrics(c.backendName, c.modelName, "error")
 		return nil, fmt.Errorf("failed to transform request: %w", err)
 	}
 
@@ -134,9 +134,9 @@ func (c *chatCompletionProcessor) ProcessRequestBody(ctx context.Context, rawBod
 		Header: &corev3.HeaderValue{Key: c.config.selectedBackendHeaderKey, RawValue: []byte(b.Name)},
 	})
 
-	if authHandler, ok := c.config.backendAuthHandlers[b.Name]; ok {
+	if authHandler, ok := c.config.backendAuthHandlers[c.backendName]; ok {
 		if err := authHandler.Do(ctx, c.requestHeaders, headerMutation, bodyMutation); err != nil {
-			c.metrics.RequestsTotal.WithLabelValues(b.Name, model, "error").Inc()
+			c.metrics.UpdateRequestMetrics(c.backendName, c.modelName, "error")
 			return nil, fmt.Errorf("failed to do auth request: %w", err)
 		}
 	}
@@ -155,8 +155,7 @@ func (c *chatCompletionProcessor) ProcessRequestBody(ctx context.Context, rawBod
 	}
 
 	// Track the backend and model name for metrics
-	c.backendName = b.Name
-	c.modelName = model
+	c.metrics.StartRequest(c.backendName, c.modelName)
 	return resp, nil
 }
 
@@ -223,18 +222,16 @@ func (c *chatCompletionProcessor) ProcessResponseBody(_ context.Context, body *e
 	c.costs.OutputTokens += tokenUsage.OutputTokens
 	c.costs.TotalTokens += tokenUsage.TotalTokens
 	// Track the token usage for metrics
-	c.metrics.TokensTotal.WithLabelValues(c.modelName, "total").Add(float64(tokenUsage.TotalTokens))
-	c.metrics.TokensTotal.WithLabelValues(c.modelName, "prompt").Add(float64(tokenUsage.InputTokens))
-	c.metrics.TokensTotal.WithLabelValues(c.modelName, "completion").Add(float64(tokenUsage.OutputTokens))
+	c.metrics.UpdateTokenMetrics(c.backendName, c.modelName, tokenUsage.OutputTokens, tokenUsage.InputTokens, tokenUsage.TotalTokens)
 
 	if body.EndOfStream && len(c.config.requestCosts) > 0 {
 		resp.DynamicMetadata, err = c.maybeBuildDynamicMetadata()
 		if err != nil {
+			c.metrics.UpdateRequestMetrics(c.backendName, c.modelName, "error")
 			return nil, fmt.Errorf("failed to build dynamic metadata: %w", err)
 		}
-		c.metrics.RequestsTotal.WithLabelValues(c.backendName, c.modelName, "success").Inc()
-		c.metrics.BackendLatency.WithLabelValues(c.backendName, c.modelName, "success").Observe(time.Since(c.requestStart).Seconds())
 	}
+	c.metrics.UpdateRequestMetrics(c.backendName, c.modelName, "success")
 	return resp, nil
 }
 

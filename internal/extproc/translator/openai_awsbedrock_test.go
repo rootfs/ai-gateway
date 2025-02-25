@@ -24,6 +24,7 @@ import (
 
 	"github.com/envoyproxy/ai-gateway/internal/apischema/awsbedrock"
 	"github.com/envoyproxy/ai-gateway/internal/apischema/openai"
+	"github.com/envoyproxy/ai-gateway/internal/metrics"
 )
 
 func TestOpenAIToAWSBedrockTranslatorV1ChatCompletion_RequestBody(t *testing.T) {
@@ -663,7 +664,9 @@ func TestOpenAIToAWSBedrockTranslatorV1ChatCompletion_RequestBody(t *testing.T) 
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			o := &openAIToAWSBedrockTranslatorV1ChatCompletion{}
+			o := &openAIToAWSBedrockTranslatorV1ChatCompletion{
+				tokenMetrics: metrics.NewTokenMetrics(),
+			}
 			originalReq := tt.input
 			hm, bm, mode, err := o.RequestBody(RequestBody(&originalReq))
 			var expPath string
@@ -700,7 +703,7 @@ func TestOpenAIToAWSBedrockTranslatorV1ChatCompletion_RequestBody(t *testing.T) 
 
 func TestOpenAIToAWSBedrockTranslatorV1ChatCompletion_ResponseHeaders(t *testing.T) {
 	t.Run("streaming", func(t *testing.T) {
-		o := &openAIToAWSBedrockTranslatorV1ChatCompletion{stream: true}
+		o := &openAIToAWSBedrockTranslatorV1ChatCompletion{stream: true, tokenMetrics: metrics.NewTokenMetrics()}
 		hm, err := o.ResponseHeaders(map[string]string{
 			"content-type": "application/vnd.amazon.eventstream",
 		})
@@ -712,7 +715,7 @@ func TestOpenAIToAWSBedrockTranslatorV1ChatCompletion_ResponseHeaders(t *testing
 		require.Equal(t, "text/event-stream", hm.SetHeaders[0].Header.Value)
 	})
 	t.Run("non-streaming", func(t *testing.T) {
-		o := &openAIToAWSBedrockTranslatorV1ChatCompletion{}
+		o := &openAIToAWSBedrockTranslatorV1ChatCompletion{tokenMetrics: metrics.NewTokenMetrics()}
 		hm, err := o.ResponseHeaders(nil)
 		require.NoError(t, err)
 		require.Nil(t, hm)
@@ -721,7 +724,7 @@ func TestOpenAIToAWSBedrockTranslatorV1ChatCompletion_ResponseHeaders(t *testing
 
 func TestOpenAIToAWSBedrockTranslatorV1ChatCompletion_Streaming_ResponseBody(t *testing.T) {
 	t.Run("streaming", func(t *testing.T) {
-		o := &openAIToAWSBedrockTranslatorV1ChatCompletion{stream: true}
+		o := &openAIToAWSBedrockTranslatorV1ChatCompletion{stream: true, tokenMetrics: metrics.NewTokenMetrics()}
 		buf, err := base64.StdEncoding.DecodeString(base64RealStreamingEvents)
 		require.NoError(t, err)
 
@@ -841,7 +844,7 @@ func TestOpenAIToAWSBedrockTranslator_ResponseError(t *testing.T) {
 			_, err := json.Marshal(tt.input)
 			require.NoError(t, err)
 
-			o := &openAIToAWSBedrockTranslatorV1ChatCompletion{}
+			o := &openAIToAWSBedrockTranslatorV1ChatCompletion{tokenMetrics: metrics.NewTokenMetrics()}
 			hm, bm, err := o.ResponseError(tt.responseHeaders, tt.input)
 			require.NoError(t, err)
 			require.NotNil(t, bm)
@@ -867,7 +870,7 @@ func TestOpenAIToAWSBedrockTranslator_ResponseError(t *testing.T) {
 
 func TestOpenAIToAWSBedrockTranslatorV1ChatCompletion_ResponseBody(t *testing.T) {
 	t.Run("invalid body", func(t *testing.T) {
-		o := &openAIToAWSBedrockTranslatorV1ChatCompletion{}
+		o := &openAIToAWSBedrockTranslatorV1ChatCompletion{tokenMetrics: metrics.NewTokenMetrics()}
 		_, _, _, err := o.ResponseBody(nil, bytes.NewBuffer([]byte("invalid")), false, "", "")
 		require.Error(t, err)
 	})
@@ -1005,7 +1008,7 @@ func TestOpenAIToAWSBedrockTranslatorV1ChatCompletion_ResponseBody(t *testing.T)
 			body, err := json.Marshal(tt.input)
 			require.NoError(t, err)
 
-			o := &openAIToAWSBedrockTranslatorV1ChatCompletion{}
+			o := &openAIToAWSBedrockTranslatorV1ChatCompletion{tokenMetrics: metrics.NewTokenMetrics()}
 			hm, bm, usedToken, err := o.ResponseBody(nil, bytes.NewBuffer(body), false, "", "")
 			require.NoError(t, err)
 			require.NotNil(t, bm)
@@ -1095,7 +1098,7 @@ func TestOpenAIToAWSBedrockTranslatorExtractAmazonEventStreamEvents(t *testing.T
 	eventBytes := buf.Bytes()
 
 	t.Run("all-at-once", func(t *testing.T) {
-		o := &openAIToAWSBedrockTranslatorV1ChatCompletion{}
+		o := &openAIToAWSBedrockTranslatorV1ChatCompletion{tokenMetrics: metrics.NewTokenMetrics()}
 		o.bufferedBody = eventBytes
 		o.extractAmazonEventStreamEvents()
 		require.Len(t, o.events, 3)
@@ -1106,7 +1109,7 @@ func TestOpenAIToAWSBedrockTranslatorExtractAmazonEventStreamEvents(t *testing.T
 	})
 
 	t.Run("in-chunks", func(t *testing.T) {
-		o := &openAIToAWSBedrockTranslatorV1ChatCompletion{}
+		o := &openAIToAWSBedrockTranslatorV1ChatCompletion{tokenMetrics: metrics.NewTokenMetrics()}
 		o.bufferedBody = eventBytes[0:1]
 		o.extractAmazonEventStreamEvents()
 		require.Empty(t, o.events)
@@ -1125,7 +1128,7 @@ func TestOpenAIToAWSBedrockTranslatorExtractAmazonEventStreamEvents(t *testing.T
 	})
 
 	t.Run("real events", func(t *testing.T) {
-		o := &openAIToAWSBedrockTranslatorV1ChatCompletion{}
+		o := &openAIToAWSBedrockTranslatorV1ChatCompletion{tokenMetrics: metrics.NewTokenMetrics()}
 		var err error
 		o.bufferedBody, err = base64.StdEncoding.DecodeString(base64RealStreamingEvents)
 		require.NoError(t, err)
@@ -1210,7 +1213,7 @@ func TestOpenAIToAWSBedrockTranslator_convertEvent(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			o := &openAIToAWSBedrockTranslatorV1ChatCompletion{}
+			o := &openAIToAWSBedrockTranslatorV1ChatCompletion{tokenMetrics: metrics.NewTokenMetrics()}
 			chunk, ok := o.convertEvent(&tc.in)
 			if tc.out == nil {
 				require.False(t, ok)

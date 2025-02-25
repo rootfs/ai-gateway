@@ -8,7 +8,7 @@ import (
 
 // Metrics holds all prometheus metrics
 type Metrics struct {
-	BackendLatency    *prometheus.HistogramVec
+	TotalLatency      *prometheus.HistogramVec
 	TokensTotal       *prometheus.CounterVec
 	RequestsTotal     *prometheus.CounterVec
 	FirstTokenLatency *prometheus.HistogramVec
@@ -21,14 +21,14 @@ var (
 	once     sync.Once
 )
 
-// New creates a new Metrics instance
-func New() *Metrics {
+// new creates a new Metrics instance
+func new() *Metrics {
 	m := &Metrics{
 		Registry: prometheus.NewRegistry(),
-		BackendLatency: prometheus.NewHistogramVec(
+		TotalLatency: prometheus.NewHistogramVec(
 			prometheus.HistogramOpts{
-				Name:    "aigateway_backend_request_duration_seconds",
-				Help:    "Time spent processing request by the LLM backend",
+				Name:    "aigateway_total_latency_seconds",
+				Help:    "Time spent processing request",
 				Buckets: []float64{.1, .5, 1, 2.5, 5, 10, 20, 30, 60},
 			},
 			[]string{"backend", "model", "status"},
@@ -38,7 +38,7 @@ func New() *Metrics {
 				Name: "aigateway_model_tokens_total",
 				Help: "Total number of tokens processed by model and type",
 			},
-			[]string{"model", "type"},
+			[]string{"backend", "model", "type"},
 		),
 		RequestsTotal: prometheus.NewCounterVec(
 			prometheus.CounterOpts{
@@ -66,7 +66,7 @@ func New() *Metrics {
 	}
 
 	// Register all metrics
-	m.Registry.MustRegister(m.BackendLatency)
+	m.Registry.MustRegister(m.TotalLatency)
 	m.Registry.MustRegister(m.TokensTotal)
 	m.Registry.MustRegister(m.RequestsTotal)
 	m.Registry.MustRegister(m.FirstTokenLatency)
@@ -78,7 +78,7 @@ func New() *Metrics {
 // GetOrCreate returns the singleton metrics instance
 func GetOrCreate() *Metrics {
 	once.Do(func() {
-		instance = New()
+		instance = new()
 	})
 	return instance
 }

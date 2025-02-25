@@ -35,7 +35,7 @@ type extProcFlags struct {
 	configPath  string     // path to the configuration file.
 	extProcAddr string     // gRPC address for the external processor.
 	logLevel    slog.Level // log level for the external processor.
-	promPort    string     // Prometheus port
+	promAddr    string     // Prometheus address
 }
 
 // parseAndValidateFlags parses and validates the flas passed to the external processor.
@@ -63,10 +63,10 @@ func parseAndValidateFlags(args []string) (extProcFlags, error) {
 		"log level for the external processor. One of 'debug', 'info', 'warn', or 'error'.",
 	)
 
-	fs.StringVar(&flags.promPort,
-		"promPort",
+	fs.StringVar(&flags.promAddr,
+		"promAddr",
 		":9190",
-		"port for prometheus metrics, default is 9190",
+		"address for prometheus metrics, default is :9190",
 	)
 
 	if err := fs.Parse(args); err != nil {
@@ -97,7 +97,7 @@ func Main() {
 		slog.String("version", version.Version),
 		slog.String("address", flags.extProcAddr),
 		slog.String("configPath", flags.configPath),
-		slog.String("promPort", flags.promPort),
+		slog.String("promAddr", flags.promAddr),
 	)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -127,29 +127,31 @@ func Main() {
 	s := grpc.NewServer()
 	extprocv3.RegisterExternalProcessorServer(s, server)
 	grpc_health_v1.RegisterHealthServer(s, server)
-	go func() {
-		<-ctx.Done()
-		s.GracefulStop()
-	}()
 
 	// Add prometheus metrics
 	metricsInstance := metrics.GetOrCreate()
 
 	// Setup prometheus handler
 	http.Handle("/metrics", promhttp.HandlerFor(metricsInstance.Registry, promhttp.HandlerOpts{}))
+	promServer := &http.Server{
+		Addr:              flags.promAddr,
+		Handler:           nil,
+		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       10 * time.Second,
+		WriteTimeout:      10 * time.Second,
+		IdleTimeout:       15 * time.Second,
+	}
+	go func() {
+		if err := promServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatalf("Metrics server failed: %v", err)
+		}
+	}()
 
 	go func() {
-		server := &http.Server{
-			Addr:              flags.promPort,
-			Handler:           nil,
-			ReadHeaderTimeout: 5 * time.Second,
-			ReadTimeout:       10 * time.Second,
-			WriteTimeout:      10 * time.Second,
-			IdleTimeout:       15 * time.Second,
-		}
-
-		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("Metrics server failed: %v", err)
+		<-ctx.Done()
+		s.GracefulStop()
+		if err := promServer.Shutdown(ctx); err != nil {
+			log.Fatalf("Metrics server failed to shutdown: %v", err)
 		}
 	}()
 
